@@ -1305,15 +1305,16 @@ bool cant_react() {
 		<transition>
 			<source ref="id30"/>
 			<target ref="id34"/>
-			<label kind="guard" x="-1768" y="-688">c &lt; tL</label>
-			<label kind="assignment" x="-1768" y="-671">update()</label>
-			<nail x="-1772" y="-671"/>
-			<nail x="-1470" y="-671"/>
+			<label kind="guard" x="-1768" y="-671">c &lt; tHalf</label>
+			<label kind="assignment" x="-1768" y="-654">update(), decide_reset()</label>
+			<nail x="-1772" y="-654"/>
+			<nail x="-1470" y="-654"/>
 		</transition>
 		<transition>
 			<source ref="id30"/>
 			<target ref="id35"/>
-			<label kind="guard" x="-1768" y="-714">c &gt;= tL</label>
+			<label kind="guard" x="-1768" y="-714">c &gt;= tHalf</label>
+			<label kind="assignment" x="-1768" y="-697">decide_react()</label>
 			<nail x="-1783" y="-698"/>
 			<nail x="-1691" y="-697"/>
 		</transition>
@@ -1348,7 +1349,7 @@ bool cant_react() {
 		<transition>
 			<source ref="id34"/>
 			<target ref="id33"/>
-			<label kind="guard" x="-1411" y="-790">cant_react()</label>
+			<label kind="guard" x="-1408" y="-788">!can_react()</label>
 		</transition>
 		<transition>
 			<source ref="id34"/>
@@ -1358,7 +1359,7 @@ bool cant_react() {
 		<transition>
 			<source ref="id35"/>
 			<target ref="id34"/>
-			<label kind="guard" x="-1547" y="-799">c &gt;= tL</label>
+			<label kind="guard" x="-1548" y="-803">c &gt;= tL</label>
 			<label kind="synchronisation" x="-1555" y="-790">reacting[0]!</label>
 			<label kind="assignment" x="-1564" y="-773">react(), c := 0</label>
 			<nail x="-1581" y="-773"/>

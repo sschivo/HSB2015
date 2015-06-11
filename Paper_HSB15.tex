@@ -399,76 +399,206 @@ implicitly assuming a uniform distribution over this interval.
 
 
 \subsection{The new Timed Automata model}\label{sec:ta-model}
-The behavior of the \ta\ representing the net reaction $R_A$ is defined as follows: after a number of seconds
-variable inside the continuous interval $[\mbox{\sf tL}, \mbox{\sf tU}]$ (measured with the local clock {\sf c}),
-the activity level of $A$ will increase or
-decrease by one step, depending on the sign of $r_A$; then new values for $r_A$, {\sf tL} and {\sf tU} will be computed based
-on the (possibly) changed conditions.
+The \tas\ model we propose uses one \ta\ template to represent each reactant:
+in Figure~\ref{fig:ta-new-model} we show the automaton that models how the
+activity level of reactant $A$ is changed by the (virtual) reaction $R_A$.
+Note that automata for $B$, $C$ and $D$ are not needed in our example, as no reactions influence them.
+We will now explain how the \tas\ template for $R_A$ works and how its discrete behavior approximates
+a continuous model.
 
-The process described in Section~\ref{sec:reactant-centered} to compute the values of {\sf tL} and {\sf tU} is an instance of the function called {\sf update()}
-in the \ta\ template of Figure~\ref{fig:ta-new-model}. The computation of {\sf update()} is the first step
-taken when initializing a new model taking the transition from the initial location {\sf start} (identified by two concentric circles)
-to {\sf updating}.
-Location {\sf updating} is then used to decide whether $R_A$ can be executed or not (functions
-{\sf can\_react()} and {\sf cant\_react()} used as guards for the transitions exiting from {\sf updating}).
-This decision is based on the computed value for
-$r_A$ and the current activity level of $A$: if $r_A > 0$ and $A$ is already completely active
-(or  $r_A < 0$ and $A$ is completely inactive), no
-update to $A$ can be applied, so the automaton switches to location {\sf not\_reacting}.
-Moreover, $r_A$ can be $0$: this means
-that the reactions influencing $A$ balance each other to complete cancellation, so also in this
-case $R_A$ cannot occur and the next location will be {\sf not\_reacting}. Otherwise (i.e. if {\sf can\_react()} is true), the activity
-level of $A$ can be changed, so the next location will be the one labeled {\sf waiting}, which
-is reached after having made sure that its clock invariant is respected (committed location
-between {\sf updating} and {\sf waiting}).
+The behavior of the \ta\ template fulfils two main tasks:
+\begin{itemize}
+  \item perform the reaction, changing the activity level of the modelled reactant $A$
+  \item update the time bounds {\sf tL} and {\sf tU} in response to changes in the network
+\end{itemize}
+The occurrence of the reaction is modelled with the central location {\sf waiting}, where the automaton
+waits for the internal clock {\sf c} to reach the time interval $[{\sf tL}, {\sf tU}]$; once
+the condition ${\sf tL} \leq c \leq {\sf tU}$
+% (given from the sum of the invariant for
+% {\sf waiting} and the guard for the transition going from {\sf waiting} to {\sf updating})
+is verified, the reaction can occur.
+This takes the automaton
+to location {\sf updating} and simultaneously changes the activity level of $A$ ({\sf react()} in the transition).
+Together with all the remaining locations, {\sf updating} is used to update the
+time bounds {\sf tL} and {\sf tU} to reflect the new state of the network and determine
+how the reaction $R_A$ will continue.
 
-When in location {\sf waiting}, the local clock {\sf c}
-is let run until enough time has passed for the reaction to occur: this is obtained by using {\sf c $>=$ tL} as guard
-for the transition from {\sf waiting} to {\sf updating}.
-Because of the invariant {\sf c $<=$ tU} on {\sf waiting}, we ensure that the reaction occurs after no more than {\sf tU} seconds have passed.
-The transition to {\sf updating} leads to an update to the activity level of $A$ (call to {\sf react()}), together with the computation of new values for $r_A$,
-{\sf tL} and {\sf tU} (function {\sf react()} calls {\sf update()}). Moreover, we see in Figure~\ref{fig:ta-new-model}
-that a communication is sent on channel {\sf reacting[0]} ($0$ is the index
-assigned to reactant $A$): this is used to warn
-the other automata that the activity level of $A$ has just changed, possibly changing the conditions for
-other reactions.
+Note that all locations apart from {\sf waiting} and {\sf not\_reacting} are
+declared as committed ({\sf C} inside the location's circle): we use them to perform \emph{instant} updates
+to the automaton and its variables. In UPPAAL, no clock advances as long as an automaton is in a committed
+location, and transitions exiting from committed locations have the precedence over other transitions.
 
-On the other hand, one of the reactants influencing a reaction on which $A$ depends may change its activity level
-before $R_A$ can occur: this event may have an influence on the value of $r_A$, so a re-computation
-of $r_A$, {\sf tL} and {\sf tU} is needed.
-In the template of Figure~\ref{fig:ta-new-model}, the indexes of the influencing reactants are 1, 2 and 3,
-corresponding respectively to $B$, $C$, $D$ in Figure~\ref{fig:network-abcd}.
-Whenever a communication on one of the channels corresponding to an influencing
-reactant is received while in location {\sf waiting}, the automaton moves to location
-{\sf stubborn}. This location was introduced to avoid unwanted non-deterministic behavior\footnote{The term \emph{unwanted}
-refers to a non-determinism that is not related to actual biological concepts, but to the semantics of the modeling
-paradigm.} in the model.
-In the example, this could happen when the activity level of $B$ is updated concurrently (in the same instant) with the activity level of $A$.
-As $B$ influences $A$ through reaction $R_1$, any change in the activity level of $B$ causes a change in $r_1$, thus
-requiring a recomputation of $r_A$, {\sf tL} and {\sf tU}. Due to the interleaving nature of \tas\ semantics, only one automaton
-may change location for the \tas\ system to change state. This means that, should the activity level of $B$ be changed
-first, the conditions for $R_A$ would be recomputed, possibly preventing the update to $A$ to occur. Vice versa, should the activity
-level of $A$ be changed first, both $A$ and $B$ could change their activity levels.
-In such a situation, the non-deterministic order in which the updates are computed decides the behavior of the model.
-To avoid this, we ensure that if a reaction can occur in a given instant (i.e. {\sf c $>=$ tL}), it will not
-consider the concurrent updates to influencing reactants (in the example, having the clock reach {\sf tL} ensures that $R_A$ occurs,
-independently from any concurrent update to $B$).
-Performing a check on the current value of the clock {\sf c} with respect to the reaction lower time bound allows
-an automaton to detect the case of a concurrent update, remaining ``stubborn'' in its resolution
-of reacting with the current configuration: the guard {\sf c $>=$ tL} on
-the transition returning from {\sf stubborn} to {\sf waiting}
-is the same as the guard on the transition from {\sf waiting} to {\sf updating} and
-implies that the transition could occur in the current time instant.
-If no conflict is found, i.e. {\sf c $<$ tL}, a new time limit for the reaction is
-computed via function {\sf update()} while moving to location {\sf updating}. Note that the clock {\sf c} is not reset
-when moving from {\sf stubborn} to {\sf updating}: should the new conditions only change the value of {\sf tL} and {\sf tU}
-without disabling the reaction, the ``partial work'' of the reactions is not discarded.
 
-Finally, location {\sf not\_reacting} is used to avoid reacting when not necessary (see the description
-of {\sf cant\_react()} above), and to respond to changes in those reactants
-which can influence the value of $r_A$. Should one of such reactants change its activity level, the
-conditions are updated and the local clock is reset, moving to {\sf updating} to check whether the reaction can now
-occur.
+\subsubsection{Location {\sf updating}: decide whether $A$ can change.}
+All transitions entering location {\sf updating} call the function {\sf update()} (a call to {\sf update()}
+is performed inside {\sf react()} before returning), which performs the computations described
+in Section~\ref{sec:reactant-centered} and thus determines the new values of $r_A$, {\sf tL} and {\sf tU}. At this
+point, one of the following conditions is true:
+\begin{enumerate}
+  \item the newly computed reaction rate $r_A$ is 0
+  \item $A$ has reached its maximum activity level and $r_A > 0$
+  \item $A$ has reached the activity level 0 and $r_A < 0$
+  \item the boundaries for $A$'s activity level have not been reached and $r_A \neq 0$
+\end{enumerate}
+In the first three cases, the function {\sf can\_react()} will return false, meaning that
+the activity level of $A$ cannot be updated further in the current conditions. This enables the transition to
+{\sf not\_reacting}, as the guard {\sf !can\_react()} is true.
+
+In the case 4, the reaction $R_A$ can still occur ({\sf can\_react()} evaluates to true), so the automaton
+returns to the {\sf waiting} location to perform a new step of the reaction. The passage through
+the interposed committed location allows us to ensure
+that the invariant {\sf c $\leq$ tU} of location {\sf waiting} is always respected. In fact, it is
+possible that {\sf c} has not been reset upon entering location {\sf updating} (transition
+from {\sf stubborn}, explained later on).
+
+\subsubsection{Channel {\sf reacting[]}: adapt to changes in the environment.}
+When the reaction $R_A$ occurs, $A$ is updated to its new activity level (call to {\sf react()} when
+exiting from {\sf waiting}) and a synchronization is performed, using {\sf reacting[0]!}
+to indicate that the activity level of $A$ has changed. {\sf reacting[]} is an array of broadcast channels,
+each one associated to a reactant in the network: in the example network, the channel with index $0$ corresponds to $A$, $1$ to $B$,
+and so on. The reception of a communication along one of those channels
+indicates that the corresponding reactant has changed its activity level. The automaton representing $R_A$
+can receive communications on the channels associated to the three reactants influencing $A$ (see the transitions
+exiting from {\sf not\_reacting} and those entering {\sf stubborn}).
+In UPPAAL, synchronizations
+along broadcast channels allow output ({\sf !}) actions to be performed even if no receiver is present. However,
+whenever an automaton performs an output action, any other automaton currently in a location where the
+corresponding input ({\sf ?}) action is enabled will necessarily synchronize with the sender.
+In our example, this means that $A$ is able to perform the output action {\sf reacting[0]!}
+even if no other automaton is present in the network, and would be able to react to any changes
+in $B$, $C$ or $D$ if automata representing those reactants were added to the model.
+
+\subsubsection{Location {\sf stubborn}: reduce the approximation error.}
+The transitions entering location {\sf stubborn} after a synchronization on a {\sf reacting[]}
+channel allow to respond to a change in the environment while $R_A$ is occurring.
+% The \ta\ representing $R_A$ 
+% synchronizes only on the channels associated to the reactants that are upstream of $A$, i.e.
+% $B$ (with the input {\sf reacting[1]?}), $C$ ({\sf reacting[2]?}) and $D$ ({\sf reacting[3]?}).
+% In order to better explain the role of location {\sf stubborn}, let us consider the automaton for $R_A$
+% to be inserted in a larger context, where also automata for additional reactions influencing $B$, $C$ and $D$ are present.
+% This would let the \ta\ for $R_A$ enter location {\sf stubborn} from {\sf waiting} each time one of
+% the reactants influencing $A$ changes its activity level.
+% 
+% Because the activity levels of the reactants influencing $A$ determine the value of $r_A$ and thus of {\sf tL} and {\sf tU},
+% in principle it would be a good idea to execute the {\sf update()} function and obtain new values for
+% the time bounds. This would make sure that the actions of $R_A$ are always based on the latest data available.
+% However, this would also introduce a significant error in the model.
+% Consider the case in which $r_A$ is much
+% lower than $r_B$, $r_C$ and $r_D$ (which, extending the notation used for $A$,
+% represent the total rates of the reactions $R_B$, $R_C$ and $R_D$, influencing $B$, $C$ and $D$, respectively).
+% Updating $r_A$ every time an upstream changes its activity level would mean that $R_A$ never performs its reaction.
+In this event, one of the following conditions is true:
+\begin{enumerate}
+  \item at least half of the current reaction step has been performed
+  \item less than half of the current reaction step has been performed
+\end{enumerate}
+
+% In case 1, we have that ${\sf c} \ge {\sf tHalf} = \frac{T_A}{2}$ (transition going to {\sf waiting}).
+% , where we remdind that $T_A$
+% is the exact time for the reaction $R_A$ to increase or decrease $A$'s activity level by one unit
+% (i.e., ${\sf tHalf} = \frac{{\sf tL} + {\sf tU}}{4}$). In this situation,
+In case 1 (${\sf c} \ge {\sf tHalf} = \frac{T_A}{2}$, transition to {\sf waiting}), the activity level of $A$
+will be updated immediately only if the effect of the changes occurred in the reactants influencing
+$A$ is \emph{dramatic}. We define a change to be dramatic if it causes the new value of $r_A$ to be at least
+twice the old value, or if it changes the direction of the reaction ($r_A$ changes sign). The comparison
+between the possible values of $r_A$, together with the actions to immediately enable\footnote{
+In practice, we set ${\sf tL} = {\sf tU} = {\sf c} = 0$.} $R_A$,
+are taken in the function {\sf decide\_react()}. From this behavior comes the name of location {\sf stubborn}.
+
+In case 2 (${\sf c} < {\sf tHalf}$, transition to {\sf updating}), the new status of the system is
+immediately acknowledged (call to function {\sf update()}) without
+performing the reaction first. Here, a decision is taken on whether to reset clock {\sf c}, i.e. whether to
+throw away the ``job already done'' or not. Again, the decision depends on the change: a dramatic change causes
+clock {\sf c} to be reset, while a non-dramatic change implies that the work will proceed at a slightly different
+speed instead of being restart. This allows to avoid starvation for $R_A$ in case of a series of changes
+with minor effects. Note that in some conditions we could have
+${\sf c} > {\sf tU}$: this means that with the new configuration the reaction should already have occurred. Thanks
+to the committed location leading to location {\sf waiting} we make sure that the reaction occurs as soon as possible
+without violating the invariant.
+
+\subsubsection{Locations {\sf not\_reacting} and {\sf start}.} While the automaton cannot perform any change
+to $A$'s activity level, it waits in location {\sf not\_reacting} for changes in the ractants from which $A$
+depends. In the event of any such changes, location {\sf updating} is reached to check on the feasibility of $R_A$.
+
+Location {\sf start} is used to perform the first step of the model, which is to initialize the parameters of the automaton.
+
+\subsection{Precision level of the model}
+Thanks to the behavior described in Section~\ref{sec:ta-model}, the resulting model for $R_A$ stays
+inside half granularity step of distance with a continuous model of the same set of reactions. Moreover,
+
+
+
+
+% The behavior of the \ta\ representing the net reaction $R_A$ is defined as follows: after a number of seconds
+% variable inside the continuous interval $[\mbox{\sf tL}, \mbox{\sf tU}]$ (measured with the local clock {\sf c}),
+% the activity level of $A$ will increase or
+% decrease by one step, depending on the sign of $r_A$; then new values for $r_A$, {\sf tL} and {\sf tU} will be computed based
+% on the (possibly) changed conditions.
+% 
+% The process described in Section~\ref{sec:reactant-centered} to compute the values of {\sf tL} and {\sf tU} is an instance of the function called {\sf update()}
+% in the \ta\ template of Figure~\ref{fig:ta-new-model}. The computation of {\sf update()} is the first step
+% taken when initializing a new model taking the transition from the initial location {\sf start} (identified by two concentric circles)
+% to {\sf updating}.
+% Location {\sf updating} is then used to decide whether $R_A$ can be executed or not (functions
+% {\sf can\_react()} and {\sf cant\_react()} used as guards for the transitions exiting from {\sf updating}).
+% This decision is based on the computed value for
+% $r_A$ and the current activity level of $A$: if $r_A > 0$ and $A$ is already completely active
+% (or  $r_A < 0$ and $A$ is completely inactive), no
+% update to $A$ can be applied, so the automaton switches to location {\sf not\_reacting}.
+% Moreover, $r_A$ can be $0$: this means
+% that the reactions influencing $A$ balance each other to complete cancellation, so also in this
+% case $R_A$ cannot occur and the next location will be {\sf not\_reacting}. Otherwise (i.e. if {\sf can\_react()} is true), the activity
+% level of $A$ can be changed, so the next location will be the one labeled {\sf waiting}, which
+% is reached after having made sure that its clock invariant is respected (committed location
+% between {\sf updating} and {\sf waiting}).
+% 
+% When in location {\sf waiting}, the local clock {\sf c}
+% is let run until enough time has passed for the reaction to occur: this is obtained by using {\sf c $>=$ tL} as guard
+% for the transition from {\sf waiting} to {\sf updating}.
+% Because of the invariant {\sf c $<=$ tU} on {\sf waiting}, we ensure that the reaction occurs after no more than {\sf tU} seconds have passed.
+% The transition to {\sf updating} leads to an update to the activity level of $A$ (call to {\sf react()}), together with the computation of new values for $r_A$,
+% {\sf tL} and {\sf tU} (function {\sf react()} calls {\sf update()}). Moreover, we see in Figure~\ref{fig:ta-new-model}
+% that a communication is sent on channel {\sf reacting[0]} ($0$ is the index
+% assigned to reactant $A$): this is used to warn
+% the other automata that the activity level of $A$ has just changed, possibly changing the conditions for
+% other reactions.
+% 
+% On the other hand, one of the reactants influencing a reaction on which $A$ depends may change its activity level
+% before $R_A$ can occur: this event may have an influence on the value of $r_A$, so a re-computation
+% of $r_A$, {\sf tL} and {\sf tU} is needed.
+% In the template of Figure~\ref{fig:ta-new-model}, the indexes of the influencing reactants are 1, 2 and 3,
+% corresponding respectively to $B$, $C$, $D$ in Figure~\ref{fig:network-abcd}.
+% Whenever a communication on one of the channels corresponding to an influencing
+% reactant is received while in location {\sf waiting}, the automaton moves to location
+% {\sf stubborn}. This location was introduced to avoid unwanted non-deterministic behavior\footnote{The term \emph{unwanted}
+% refers to a non-determinism that is not related to actual biological concepts, but to the semantics of the modeling
+% paradigm.} in the model.
+% In the example, this could happen when the activity level of $B$ is updated concurrently (in the same instant) with the activity level of $A$.
+% As $B$ influences $A$ through reaction $R_1$, any change in the activity level of $B$ causes a change in $r_1$, thus
+% requiring a recomputation of $r_A$, {\sf tL} and {\sf tU}. Due to the interleaving nature of \tas\ semantics, only one automaton
+% may change location for the \tas\ system to change state. This means that, should the activity level of $B$ be changed
+% first, the conditions for $R_A$ would be recomputed, possibly preventing the update to $A$ to occur. Vice versa, should the activity
+% level of $A$ be changed first, both $A$ and $B$ could change their activity levels.
+% In such a situation, the non-deterministic order in which the updates are computed decides the behavior of the model.
+% To avoid this, we ensure that if a reaction can occur in a given instant (i.e. {\sf c $>=$ tL}), it will not
+% consider the concurrent updates to influencing reactants (in the example, having the clock reach {\sf tL} ensures that $R_A$ occurs,
+% independently from any concurrent update to $B$).
+% Performing a check on the current value of the clock {\sf c} with respect to the reaction lower time bound allows
+% an automaton to detect the case of a concurrent update, remaining ``stubborn'' in its resolution
+% of reacting with the current configuration: the guard {\sf c $>=$ tL} on
+% the transition returning from {\sf stubborn} to {\sf waiting}
+% is the same as the guard on the transition from {\sf waiting} to {\sf updating} and
+% implies that the transition could occur in the current time instant.
+% If no conflict is found, i.e. {\sf c $<$ tL}, a new time limit for the reaction is
+% computed via function {\sf update()} while moving to location {\sf updating}. Note that the clock {\sf c} is not reset
+% when moving from {\sf stubborn} to {\sf updating}: should the new conditions only change the value of {\sf tL} and {\sf tU}
+% without disabling the reaction, the ``partial work'' of the reactions is not discarded.
+% 
+% Finally, location {\sf not\_reacting} is used to avoid reacting when not necessary (see the description
+% of {\sf cant\_react()} above), and to respond to changes in those reactants
+% which can influence the value of $r_A$. Should one of such reactants change its activity level, the
+% conditions are updated and the local clock is reset, moving to {\sf updating} to check whether the reaction can now
+% occur.
 
 \subsection{Computations on the fly}\label{sec:rates-ta-model}
 Reaction rates are all computed at run-time by the function {\sf update()},
