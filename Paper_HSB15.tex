@@ -23,6 +23,7 @@
 \newcommand{\tas}{Timed Automata}
 \newcommand{\nat}{\mathbb{N}}
 \setlength{\belowcaptionskip}{-10pt}
+%\setlength{\parskip}{.2em}
 
 
 \title{Improving the \tas\ approach to biological pathway dynamics}
@@ -406,13 +407,13 @@ Note that automata for $B$, $C$ and $D$ are not needed in our example, as no rea
 We will now explain how the \tas\ template for $R_A$ works and how its discrete behavior approximates
 a continuous model.
 
-The behavior of the \ta\ template fulfils two main tasks:
+The proposed \ta\ template fulfils two main tasks:
 \begin{itemize}
   \item perform the reaction, changing the activity level of the modelled reactant $A$
   \item update the time bounds {\sf tL} and {\sf tU} in response to changes in the network
 \end{itemize}
 The occurrence of the reaction is modelled with the central location {\sf waiting}, where the automaton
-waits for the internal clock {\sf c} to reach the time interval $[{\sf tL}, {\sf tU}]$; once
+waits for the internal clock {\sf c} to reach the time interval $[{\sf tL}, {\sf tU}]$; when
 the condition ${\sf tL} \leq c \leq {\sf tU}$
 % (given from the sum of the invariant for
 % {\sf waiting} and the guard for the transition going from {\sf waiting} to {\sf updating})
@@ -420,7 +421,7 @@ is verified, the reaction can occur.
 This takes the automaton
 to location {\sf updating} and simultaneously changes the activity level of $A$ ({\sf react()} in the transition).
 Together with all the remaining locations, {\sf updating} is used to update the
-time bounds {\sf tL} and {\sf tU} to reflect the new state of the network and determine
+time bounds {\sf tL} and {\sf tU} to reflect the new state of the network and to determine
 how the reaction $R_A$ will continue.
 
 Note that all locations apart from {\sf waiting} and {\sf not\_reacting} are
@@ -460,7 +461,7 @@ and so on. The reception of a communication along one of those channels
 indicates that the corresponding reactant has changed its activity level. The automaton representing $R_A$
 can receive communications on the channels associated to the three reactants influencing $A$ (see the transitions
 exiting from {\sf not\_reacting} and those entering {\sf stubborn}).
-In UPPAAL, synchronizations
+Note that in UPPAAL synchronizations
 along broadcast channels allow output ({\sf !}) actions to be performed even if no receiver is present. However,
 whenever an automaton performs an output action, any other automaton currently in a location where the
 corresponding input ({\sf ?}) action is enabled will necessarily synchronize with the sender.
@@ -497,8 +498,8 @@ In this event, one of the following conditions is true:
 % , where we remdind that $T_A$
 % is the exact time for the reaction $R_A$ to increase or decrease $A$'s activity level by one unit
 % (i.e., ${\sf tHalf} = \frac{{\sf tL} + {\sf tU}}{4}$). In this situation,
-In case 1 (${\sf c} \ge {\sf tHalf} = \frac{T_A}{2}$, transition to {\sf waiting}), the activity level of $A$
-will be updated immediately only if the effect of the changes occurred in the reactants influencing
+In case 1 (${\sf c} \ge {\sf tHalf} = \frac{T_A}{2}$, transition to {\sf waiting}), the current reaction step
+will be completed immediately if the effect of the changes occurred in the reactants influencing
 $A$ is \emph{dramatic}. We define a change to be dramatic if it causes the new value of $r_A$ to be at least
 twice the old value, or if it changes the direction of the reaction ($r_A$ changes sign). The comparison
 between the possible values of $r_A$, together with the actions to immediately enable\footnote{
@@ -522,9 +523,14 @@ depends. In the event of any such changes, location {\sf updating} is reached to
 
 Location {\sf start} is used to perform the first step of the model, which is to initialize the parameters of the automaton.
 
-\subsection{Precision level of the model}
-Thanks to the behavior described in Section~\ref{sec:ta-model}, the resulting model for $R_A$ stays
-inside half granularity step of distance with a continuous model of the same set of reactions. Moreover,
+\subsection{Precision level of the model}\label{sec:ta-precision}
+Thanks to the features described in Section~\ref{sec:ta-model}, the precision of the \ta\ model for $R_A$ 
+is linked to the granularity of reactant $A$: the larger number of discrete steps are used to represent $A$'s
+activity level, the shorter each reaction step involving $A$ will be. This reduces the error made when taking decisions
+in location {\sf stubborn}: that error is always less than half a granularity step (cf. the use of {\sf tHalf}).
+Moreover, we can show that having a series of \emph{dramatic} changes in the environment will not
+increase the error, which is limited by $1 - \frac{1}{2^d}$, with $d$ the number of consecutive dramatic changes
+occurring before $R_A$ can complete the current reaction step.
 
 
 
@@ -623,7 +629,7 @@ which is translated back as $a = 1235 \times 10^{-3} = 1.235$.
 The interested reader can find the UPPAAL definitions and functions needed to compute rate and time values for the \tas\ templates,
 together with all other functions such as {\sf update()} and {\sf react()},
 in Appendix~\ref{apx:double-functions} or 
-inside any UPPAAL model file generated by ANIMO with a reactant-centered model type~\footnote{Models generated
+inside any UPPAAL model file generated by ANIMO with a reactant-centered model type\footnote{Models generated
 by ANIMO are saved in the system's temporary directory. Further details are available in
 the ANIMO manual at \url{http://fmt.cs.utwente.nl/tools/animo/content/Manual.pdf}}.
 % The definition of all
@@ -691,7 +697,7 @@ which represents signaling events downstream of growth factors EGF (epidermal gr
 and NGF (nerve growth factor) in PC12 cells (a cell line used to study neuronal differentiation).
 The model topology proposed in~\cite{egf-ngf} was analyzed
 with an ANIMO model based on the reaction-centered approach, reproducing the experimentally 
-observed ERK (extracellular signal-regulated kinase) activity changes~\cite{animo-ieee}.
+observed ERK (extracellular signal-regulated kinase) activity changes~\cite{animo-ieee}.\footnote{Model available at \url{http://fmt.cs.utwente.nl/tools/animo/models.html}}
 In particular, a 10 minutes stimulation with EGF resulted in transient behavior (i.e. peak-shaped,
 see also the graph in Fig.~\ref{fig:cytoscape}), while NGF stimulation led to sustained activity (data not shown).%see Fig.~\ref{fig:comparison-graph-animo}).
 
@@ -947,7 +953,7 @@ is under study.
 
 
 \bibliographystyle{splncs}
-\bibliography{Paper_HSB15}
+{\small\bibliography{Paper_HSB15}}
 
 
 
@@ -959,36 +965,61 @@ is under study.
 \section{UPPAAL functions for the example model}\label{apx:double-functions}
 \lstset{language=C,frame=none,tabsize=2,breaklines=true,numbers=none}
 
+\addtolength{\oddsidemargin}{-2cm}
+\addtolength{\evensidemargin}{-2cm}
+\addtolength{\textwidth}{4cm}
 \subsection{Globlal functions and declarations}
-\begin{lstlisting}
+\begin{lstlisting}[linewidth=\textwidth]
 clock globalTime;
 const int INFINITE_TIME = -1;
 const int N_REACTANTS = 4;
 broadcast chan reacting[N_REACTANTS];
 
+//Reactant A
+int R0 := 0;
+const int R0Levels := 100;
+
+//Reactant B
+int R1 := 100;
+const int R1Levels := 100;
+
+//Reactant C
+int R2 := 100;
+const int R2Levels := 100;
+
+//Reactant D
+int R3 := 100;
+const int R3Levels := 100;
+
+
 typedef struct {
 	int[-99980001, 99980001] b; //99980001 = 9999 * 9999
 	int e;
-} double_t;
+} double_t; //"double" is a reserved word
 
-//Variables linked to the model
-//B --> A, C --> A, D --| A
 
-//Reactant A
-int R0 := 0;
-const int R0Levels := 15;
+const double_t INFINITE_TIME_DOUBLE = {-1000, -3}, //INFINITE_TIME (-1) translated into double
+	       ZERO = {0, 0}, // 0
+	       TWO = {2000, -3}; // 2
+const double_t LOWER_UNC = {9500, -4}, //Lower and upper scale factors to apply uncertainty. E.g. for +/- 5% uncertainty, we have lower uncertainty = 0.95, upper uncertainty = 1.05
+             UPPER_UNC = {1050, -3};
 
-//Reactant B
-int R1 := 0;
-const int R1Levels := 15;
+typedef int[-1, 1073741822] time_t;
 
-//Reactant C
-int R2 := 0;
-const int R2Levels := 15;
 
-//Reactant D
-int R3 := 0;
-const int R3Levels := 15;
+//Reaction R1 (B) --> R0 (A)
+timeActivity R1_R0;
+const double_t k_R1_R0 = {4000, -6};
+
+//Reaction R2 (C) --> R0 (A)
+timeActivity R2_R0;
+const double_t k_R2_R0 = {4000, -6};
+
+//Reaction R3 (D) --| R0 (A)
+timeActivity R3_R0;
+const double_t k_R3_R0 = {4000, -6};
+
+
 
 double_t subtract(double_t a, double_t b) { // a - b
 	double_t r = {-1000, -1000};
@@ -1043,6 +1074,9 @@ double_t subtract(double_t a, double_t b) { // a - b
 	} else if ((r.b > 0 && r.b < 1000) || (r.b < 0 && r.b > -1000)) {
 		r.b = r.b * 10;
 		r.e = r.e - 1;
+	} else if (r.b > 9999 || r.b < -9999) {
+		r.b = r.b / 10;
+		r.e = r.e + 1;
 	}
 	return r;
 }
@@ -1092,8 +1126,11 @@ double_t add(double_t a, double_t b) { // a + b
 		r.b = r.b * 100;
 		r.e = r.e - 2;
 	} else if ((r.b > 0 && r.b < 1000) || (r.b < 0 && r.b > -1000)) {
-	r.b = r.b * 10;
+		r.b = r.b * 10;
 		r.e = r.e - 1;
+	} else if (r.b > 9999 || r.b < -9999) {
+		r.b = r.b / 10;
+		r.e = r.e + 1;
 	}
 	return r;
 }
@@ -1125,10 +1162,8 @@ double_t multiply(double_t a, double_t b) { // a * b
 
 double_t inverse(double_t a) { // 1 / a
 	double_t r;
-	if (a.b == 0) {
-		r.b = -1000;
-		r.e = -3;
-		return r;
+	if (a.b == 0 || a.e < -9) { // 1 / 1e-9 is still ok, but 1 / 1e-10 is too large (> 2^30 - 2, the largest allowed constant for guards/invariants)
+		return INFINITE_TIME_DOUBLE;
 	}
 	r.b = 1000000 / a.b;
 	r.e = -6 - a.e;
@@ -1154,7 +1189,10 @@ time_t power(int a, int b) { // a ^ b (b >= 0)
 	return r;
 }
 
-time_t round(double_t a) { // double_t --> integer
+time_t round(double_t a) { // double --> integer
+	if (a == INFINITE_TIME_DOUBLE) { // Don't need to translate literally if we have infinite
+		return INFINITE_TIME;
+	}
 	if (a.e < -3) {
 		if (a.b < 5000) return 0;
 		else return 1;
@@ -1183,7 +1221,6 @@ time_t round(double_t a) { // double_t --> integer
 	return a.b * power(10, a.e);
 }
 
-//Compute scenario 1 for the given reactant
 double_t scenario1(double_t k, double_t r1, double_t r1Levels, bool r1Active) {
 	double_t E;
 	if (r1Active) { //If we depend on active R1, the level of activity is the value of E
@@ -1194,7 +1231,7 @@ double_t scenario1(double_t k, double_t r1, double_t r1Levels, bool r1Active) {
 	return multiply(k, E);
 }
 
-//Compute scenario 2 (or 3: the formula is the same) for the given reactants
+
 double_t scenario2_3(double_t k, double_t r2, double_t r2Levels, bool r2Active, double_t r1, double_t r1Levels, bool r1Active) {
 	double_t E, S;
 	if (r1Active) { //If we depend on active R1, the level of activity is the value of E
@@ -1211,7 +1248,7 @@ double_t scenario2_3(double_t k, double_t r2, double_t r2Levels, bool r2Active, 
 }
 
 
-double_t int_to_double_t(int a) { //Used to translate an activity level into double_t.
+double_t int_to_double(int a) { //Used to translate an activity level into double.
 	double_t r;
 	if (a < 10) {
 		r.b = a * 1000;
@@ -1232,33 +1269,45 @@ double_t int_to_double_t(int a) { //Used to translate an activity level into dou
 
 \clearpage
 \subsection{Functions and declarations local to each automaton}
-\begin{lstlisting}
+\begin{lstlisting}[linewidth=\textwidth]
 //Local variables to the automaton representing the reactions influencing R0 (also called A)
 
-int[-1, 1] delta;
-time_t T;
 clock c;
-double_t rate_; //"rate" is a reserved word
+int[-1, 1] delta = 0;
+time_t tL = INFINITE_TIME,
+       tU = INFINITE_TIME,
+       tHalf = INFINITE_TIME;
+double_t rateA = INFINITE_TIME_DOUBLE,
+         oldRateA = INFINITE_TIME_DOUBLE;
+
+double_t compute_rate() {
+	// B --> A
+	double_t R1_R0_r = scenario1(k_R1_R0, int_to_double(R1), int_to_double(R1Levels), true);
+	// C --> A
+	double_t R2_R0_r = scenario1(k_R2_R0, int_to_double(R2), int_to_double(R2Levels), true);
+	// D --> A
+	double_t R3_R0_r = scenario1(k_R3_R0, int_to_double(R3), int_to_double(R3Levels), true);
+	return subtract(add(R1_R0_r, R2_R0_r), R3_R0_r);
+}
 
 void update() {
-	double_t // B --> A
-	       R1_R0_rate = scenario2_3(k_R1_R0, int_to_double_t(R0), int_to_double_t(R0Levels), true, int_to_double_t(R1), int_to_double_t(R1Levels), true),
-	       // C --> A
-	       R2_R0_rate = scenario2_3(k_R2_R0, int_to_double_t(R0), int_to_double_t(R0Levels), false, int_to_double_t(R2), int_to_double_t(R2Levels), true),
-	       // D --| A
-	       R3_R0_rate = scenario2_3(k_R3_R0, int_to_double_t(R0), int_to_double_t(R0Levels), true, int_to_double_t(R3), int_to_double_t(R3Levels), true);
-	rate_ = subtract(add(R1_R0_rate, R2_R0_rate), R3_R0_rate);
-	if (rate_.b < 0) {
+	oldRateA = rateA;
+	rateA = compute_rate();
+	oldDelta = delta;
+	if (rateA.b < 0) {
 		delta = -1;
-		rate_.b = -rate_.b;
+		rateA.b = -rateA.b;
 	} else {
 		delta = 1;
 	}
-	if (rate_.b != 0) {
-		T = round(inverse(rate_));
+	if (rateA.b != 0) {
+		tL = round(multiply(inverse(rateA), LOWER_UNC));
+		tU = round(multiply(inverse(rateA), UPPER_UNC));
 	} else {
-		T = INFINITE_TIME;
+		tL = INFINITE_TIME;
+		tU = INFINITE_TIME;
 	}
+	tHalf = round(inverse(multiply(rateA, TWO))); //tHalf = T_A / 2
 }
 
 void react() {
@@ -1268,12 +1317,36 @@ void react() {
 	update();
 }
 
-bool can_react() {
-	return T != INFINITE_TIME && T != 0 && ((delta > 0 && R0 < R0Levels) || (delta < 0 && R0 > 0));
+//True if the new rate is at least double the old one,
+//or if the sign of the rates is different (the reaction changes direction)
+bool rate_significantly_changed(double_t oldRate, double_t newRate) {
+	double_t diff = subtract(multiply(newRate, inverse(oldRate)), TWO);
+	if ((oldRate.b < 0 && newRate.b >= 0 || oldRate.b >= 0 && newRate.b < 0) || diff.b >= 0) {
+		return true;
+	}
+	return false;
 }
 
-bool cant_react() {
-	return T == INFINITE_TIME || T == 0 || (delta > 0 && R0 == R0Levels) || (delta < 0 && R0 == 0);
+//If the updated conditions have significantly changed the rate,
+//restart the reaction from the beginning, without considering the work already done.
+void decide_reset() {
+	if (rate_significantly_changed(oldRate, rateA)) {
+		c = 0;
+	}
+}
+
+//If the update in conditions would significantly change the rate,
+//rush the reaction (we have completed at least 50% of it: see the guard c >= tHalf)
+void decide_react() {
+	if (rate_significantly_changed(rateA, compute_rate())) {
+		tL = 0;
+		tU = 0;
+		c = 0;
+	}
+}
+
+bool can_react() {
+	return T != INFINITE_TIME && T != 0 && ((delta > 0 && R0 < R0Levels) || (delta < 0 && R0 > 0));
 }
 \end{lstlisting}
 
